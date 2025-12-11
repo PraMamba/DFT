@@ -336,6 +336,25 @@ class DataProcessor:
         self.debug = debug
         self.process_stats = {"success": 0, "failed": 0, "total": 0}
     
+    def _convert_conversations_to_messages(self, conversations):
+        """Convert conversations format (from/value) to messages format (role/content)"""
+        messages = []
+        role_mapping = {
+            "system": "system",
+            "human": "user",
+            "user": "user",
+            "gpt": "assistant",
+            "assistant": "assistant"
+        }
+        
+        for conv in conversations:
+            from_role = conv.get("from", "")
+            value = conv.get("value", "")
+            role = role_mapping.get(from_role, from_role)
+            messages.append({"role": role, "content": value})
+        
+        return messages
+    
     def _validate_messages_format(self, messages):
         if not isinstance(messages, list) or len(messages) == 0:
             return False
@@ -344,10 +363,15 @@ class DataProcessor:
         for msg in messages:
             if not isinstance(msg, dict):
                 return False
-            if 'role' not in msg or 'content' not in msg:
+            # Support both formats: messages (role/content) and conversations (from/value)
+            if 'role' in msg and 'content' in msg:
+                if msg.get('role') == 'assistant':
+                    has_assistant = True
+            elif 'from' in msg and 'value' in msg:
+                if msg.get('from') in ['gpt', 'assistant']:
+                    has_assistant = True
+            else:
                 return False
-            if msg.get('role') == 'assistant':
-                has_assistant = True
         
         return has_assistant
     
@@ -363,12 +387,18 @@ class DataProcessor:
             try:
                 dataset = load_dataset("json", data_files=file_path, split="train")
                 
-                if "messages" not in dataset.column_names:
-                    dist_logger.warning(f"文件 {Path(file_path).name} 不包含messages字段")
+                # Support both "messages" and "conversations" fields
+                message_field = None
+                if "messages" in dataset.column_names:
+                    message_field = "messages"
+                elif "conversations" in dataset.column_names:
+                    message_field = "conversations"
+                else:
+                    dist_logger.warning(f"文件 {Path(file_path).name} 不包含messages或conversations字段")
                     continue
                 
                 def filter_valid(example):
-                    return self._validate_messages_format(example.get("messages", []))
+                    return self._validate_messages_format(example.get(message_field, []))
                 
                 initial_len = len(dataset)
                 dataset = dataset.filter(filter_valid)
@@ -380,6 +410,13 @@ class DataProcessor:
                 
                 if final_len < initial_len:
                     dist_logger.info(f"文件 {Path(file_path).name}: {initial_len} -> {final_len} 样本")
+                
+                # Normalize conversations to messages format if needed
+                if message_field == "conversations":
+                    def normalize_format(example):
+                        example["messages"] = self._convert_conversations_to_messages(example["conversations"])
+                        return example
+                    dataset = dataset.map(normalize_format)
                 
                 # 仅保留训练所需列，避免不同文件其他字段（content/title/…）的schema冲突
                 try:

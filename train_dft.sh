@@ -16,11 +16,11 @@ conda activate Axolotl
 cd ~/DFT
 
 # === Experiment Parameters ===
-LAUNCH_TYPE=DeepSpeed  # Options: DeepSpeed, TorchRun
+LAUNCH_TYPE=DeepSpeed       # Options: DeepSpeed, TorchRun
 MODEL_PATH="/gpfs/Mamba/Project/Single_Cell/Training/Qwen2.5-7B-Instruct_Manual_Resize_Block-8_Size-32_Num-256_ExplicitTokens_Continued-Pretrain=TOP-500_GeneNames_Sample-0.1_MetaQA=Cell_Type_NEW-RVQ_V1/checkpoint-72000"
 DATE_SUFFIX=$(date +"%Y%m%d_%H%M%S")
-OUTPUT_DIR=./output/dft_${DATE_SUFFIX}
-RUN_NAME=DFT_Training_${DATE_SUFFIX}
+OUTPUT_DIR="/data/Mamba/Project/Single_Cell/Training/Qwen2.5-7B-Instruct_Manual_Resize_Block-8_Size-32_Num-256_ExplicitTokens_Continued-Pretrain=TOP-500_GeneNames_Sample-0.1_MetaQA=Cell_Type_NEW-RVQ_DFT"
+RUN_NAME=model_training
 
 # === Training Data ===
 DATA_FILES=(
@@ -52,14 +52,14 @@ SEED=42
 # === Data Processing ===
 PREPROCESSING_NUM_WORKERS=8
 DATALOADER_NUM_WORKERS=8
-VALIDATION_SPLIT_PERCENTAGE=2.0
+VALIDATION_SPLIT_PERCENTAGE=0.0
 DEBUG_DATA_PROCESSING=True
 
 # === Checkpoint & Logging ===
 SAVE_STEPS=500
 EVAL_STEPS=500
 SAVE_TOTAL_LIMIT=5
-SAVE_ONLY_MODEL=2
+SAVE_ONLY_MODEL=True
 LOGGING_STEPS=1
 LOG_METRICS_STEPS=500
 REDUCE_LOGGING=True
@@ -69,8 +69,8 @@ REPORT_TO=swanlab       # Options: swanlab, wandb, tensorboard, none
 DEEPSPEED_CONFIG=./config/zero2.json
 
 # === GPU Configuration ===
-GPU_DEVICES="0,1,2,3,4,5,6,7"
-NUM_GPUS=8
+GPU_DEVICES="0,1,2,3"
+NUM_GPUS=4
 MASTER_PORT=29500
 
 # === Log Setup ===
